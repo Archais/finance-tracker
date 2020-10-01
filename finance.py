@@ -148,7 +148,7 @@ class dataWindow(QWidget):
         self.setMaximumHeight(round(height))
         self.setMaximumWidth(round(width))
 
-        self.setGeometry(QRect(self.posX, self.posX, self.width, self.height))
+        self.setGeometry(QRect(self.posX, self.posY, self.width, self.height))
 
         self.wrkngDrctry = path[0]
 
@@ -164,25 +164,38 @@ class dataWindow(QWidget):
         self.setLayout(self.layout)
 
 
-    def generateContent(self):
+    def generateContent(self, query: str):
+        "Run given query and return result"
         try:
             with sql.connect(f'{self.wrkngDrctry}/finances.db') as db:
                 cursor = db.cursor()
-                cursor.execute('select Date, Activity, "Transaction Type", "Other Party", Value from finance order by ID desc')
-                export = cursor.fetchall()
+                cursor.execute(query)
+                return cursor.fetchall()
         except Exception as error:
             errorMsg = btnPrmpt('Error Message', 'Single', error.__str__())
             errorMsg.exec_()
+            return None
 
-        self.contentTable.setRowCount(len(export) + 1)
-        self.contentTable.setColumnCount(5)
 
-        self.contentTable.horizontalHeader().setStretchLastSection(True) 
-        self.contentTable.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch) 
+    def populateTable(self, table: QTableWidget, query: str):
+        "Populate the given table"
+        export = self.generateContent(query)
+        if export:
+            table.setRowCount(len(export) + 1)
+            table.setColumnCount(5)
 
-        for i, title in enumerate(['Date', 'Activity', 'Transaction Type', 'Other Party', 'Value']):
-            self.contentTable.setItem(0, i, QTableWidgetItem(title))
-            self.contentTable.item(0, i).setTextAlignment(Qt.AlignCenter)
+            table.horizontalHeader().setStretchLastSection(True) 
+            table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch) 
+
+            columns = ['Date', 'Activity', 'Transaction Type', 'Other Party', 'Value']
+
+            for i, title in enumerate(columns):
+                table.setItem(0, i, QTableWidgetItem(title))
+                table.item(0, i).setTextAlignment(Qt.AlignCenter)
+
+            for i in range(len(export)):
+                for j, col in enumerate(columns):
+                    table.setItem(i + 1, j, QTableWidgetItem(export[i][col]))
 
 
 class btnPrmpt(QDialog):
