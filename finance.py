@@ -156,8 +156,24 @@ class dataWindow(QWidget):
         self.tabs.setTabPosition(QTabWidget.North)
 
         self.contentTable = QTableWidget()
-        self.generateContent()    
-        self.tabs.addTab(self.contentTable, 'Contents')
+        self.contentQuery = 'select Date, Activity, "Transaction Type", "Other Party", Value from finance order by ID desc'
+        self.populateTable(self.contentTable, self.contentQuery)
+        numRows = self.contentTable.rowCount()
+        if numRows > 1:
+            self.tabs.addTab(self.contentTable, 'Contents')
+        elif numRows:
+            self.contentTable = QLabel('No results to display')
+            self.contentTable.setAlignment(Qt.AlignCenter)
+            font = self.contentTable.font()
+            font.setPointSize(font.pointSize * 5)
+            self.contentTable.setFont(font)
+        else:
+            self.contentTable = QLabel('No results to display')
+            self.contentTable.setAlignment(Qt.AlignCenter)
+            font = self.contentTable.font()
+            font.setPointSize(font.pointSize() * 5)
+            self.contentTable.setFont(font)
+        self.tabs.addTab(self.contentTable, 'Transaction History')
 
         self.layout = QVBoxLayout()
         self.layout.addWidget(self.tabs)
