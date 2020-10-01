@@ -1,4 +1,5 @@
-from PyQt5.QtWidgets import *
+# pylint:disable=undefined-variable
+from PyQt5.QtWidgets import * 
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from csv import DictReader, DictWriter
@@ -112,7 +113,7 @@ class MainWindow(QMainWindow):
                             raise Exception
                         db.execute('insert into finance (Date, Activity, "Transaction Type", "Other Party", Value) values(?, ?, ?, ?, ?);', list(record.values()))
                         numImports += 1
-                    except Exception as error:
+                    except Exception:
                         self.failedImports.append(record)
                 if self.failedImports:
                     with open(f'{self.wrkngDrctry}/failedImports.csv', 'w') as failures:
