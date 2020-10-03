@@ -3,7 +3,7 @@ from sys import path
 from os import system
 
 
-requirements = ['pyqt5', 'sqlite3']
+requirements = ['pyqt5']
 
 for item in requirements:
     system(f'pip3 install {item}')
@@ -13,7 +13,7 @@ with sql.connect(f'{path[0]}/finances.db') as db:
     try:
         db.execute('''create table if not exists finance (
             ID integer primary key,
-            Date date not null,
+            Date text not null,
             Activity text,
             "Transaction Type" Text not null,
             "Other Party" Text,

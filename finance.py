@@ -100,31 +100,105 @@ class MainWindow(QMainWindow):
 
 
     def importCSV(self):
+        "Import CSV"
         with open(self.csvFile) as dataImport:
             reader = DictReader(dataImport)
             with sql.connect(f'{self.wrkngDrctry}/finances.db') as db:
+                validCSV = True
+                msg = 'There were no records to import.'
+                keys = ['ID', 'Date', 'Activity', 'Transaction Type', 'Other Party', 'Value']
                 self.failedImports = []
-                numImports = 0
-                numFailures = 0
+                results = {'Inserts': 0, 'Updates': 0, 'Failures': 0}
                 for record in reader:
+                    values = {}
+                    for key in keys:
+                        if key not in record.keys():
+                            msg = 'Invalid CSV file, please export a template and try again.'
+                            validCSV = False
+                            break
+                        else:
+                            values[key] = record[key]
+                    if not validCSV:
+                        break
+
+                    if not values['ID']:
+                        values['ID'] = '-'
+ 
                     try:
-                        if not record['Date'] or not record['Other Party'] or not record['Value'] or \
-                            (type(record['Value']) != type(1.5) and type(record['Value']) != type(1)):
+                        if not values['Date'] or not values['Transaction Type'] or not values['Other Party'] or not values['Value']:
+                            values['Reason'] = 'Missing values'
                             raise Exception
-                        db.execute('insert into finance (Date, Activity, "Transaction Type", "Other Party", Value) values(?, ?, ?, ?, ?);', list(record.values()))
-                        numImports += 1
-                    except Exception:
-                        self.failedImports.append(record)
-                if self.failedImports:
+
+                        if values['ID'].isnumeric():
+                            values['ID'] = int(values['ID'])
+                        elif values['ID'] != '-':
+                            values['Reason'] = 'Invalid ID'
+                            raise Exception
+
+                        try:
+                            dateLen = len(values['Date'])
+                            dateSep = ''
+                            for sep in ['-', '\\', '/']:
+                                if sep in values['Date']:
+                                    if dateSep:
+                                        raise Exception
+                                    dateSep = sep
+                            if dateLen > 7 and dateLen < 11 and values['Date'].count(dateSep, 4, 8) == 2:
+                                print(values["Date"])
+                                date = values['Date'].split(dateSep)
+                                if len(date) != 3:
+                                    raise Exception
+                                for elem in date:
+                                    for digit in elem:
+                                        if not digit.isnumeric():
+                                            raise Exception
+                                year = int(date[0])
+                                if len(date[0]) != 4:
+                                    raise Exception
+                                month = int(date[1])
+                                if (len(date[1]) != 1 and len(date[1]) != 2) or month < 1 or month > 12:
+                                    raise Exception
+                                day = int(date[2])
+                                if (len(date[2]) != 1 and len(date[2]) != 2) or day < 1 or day > 31:
+                                    raise Exception
+                            else:
+                                raise Exception
+                            values['Date'] = dt.date(year, month, day)
+                        except Exception:
+                            values['Reason'] = 'Invalid date'
+                            raise Exception
+
+                        try:
+                            values['Value'] = float(values['Value'])
+                        except Exception:
+                            values['Reason'] = "Invalid transaction value"
+                            raise Exception
+
+                        if type(values['ID']) == int:
+                            db.execute(f'update finance\
+                                set Date = "{values["Date"]}", Activity = "{values["Activity"]}", `Transaction Type` = "{values["Transaction Type"]}",\
+                                `Other Party` = "{values["Other Party"]}", Value = {values["Value"]};')
+                            results['Updates'] += 1
+                        else:
+                            db.execute(f'insert into finance (Date, Activity, "Transaction Type", "Other Party", Value) values(?, ?, ?, ?, ?);', list(values.values())[1:])
+                            results['Inserts'] += 1
+
+                    except Exception as error:
+                        if 'Reason' not in values.keys():
+                            values['Reason'] = error.__str__()
+                        self.failedImports.append(values)
+                if self.failedImports and validCSV:
                     with open(f'{self.wrkngDrctry}/failedImports.csv', 'w') as failures:
-                        writer = DictWriter(failures, ['Date', 'Activity', 'Transaction Type', 'Other Party', 'Value'])
+                        keys.append('Reason')
+                        writer = DictWriter(failures, keys)
                         writer.writeheader()
                         for record in self.failedImports:
-                            numFailures += 1
+                            results['Failures'] += 1
                             writer.writerow(record)
-                if numImports or numFailures:
-                    successMsg = btnPrmpt('Successes', 'Single', f'{numImports} records successfully imported.\n{numFailures} were not imported.')
-                    successMsg.exec_()
+                if (results['Inserts'] or results['Updates'] or results['Failures']) and validCSV:
+                    msg = f'{results["Inserts"]} records successfully imported.\n{results["Updates"]} records successfully updated.\n{results["Failures"]} were not imported.'
+                successMsg = btnPrmpt('Import Results', 'Single', msg)
+                successMsg.exec_()
 
 
     def viewTable(self):
