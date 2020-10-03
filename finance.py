@@ -5,8 +5,14 @@ from PyQt5.QtGui import *
 from csv import DictReader, DictWriter
 from sys import path
 
-import sqlite3 as sql
+import sqlite3 as sql, datetime as dt
 
+def dict_factory(cursor, row):
+    "Causes SQLite3 queries to return as dictionaries"
+    d = {}
+    for idx, col in enumerate(cursor.description):
+        d[col[0]] = row[idx]
+    return d
 
 class MainWindow(QMainWindow):
     def __init__(self, res, *args, **kwargs):
@@ -65,17 +71,20 @@ class MainWindow(QMainWindow):
     def exportTemplate(self):
         try:
             with sql.connect(f'{self.wrkngDrctry}/finances.db') as db:
+                db.row_factory = dict_factory
                 cursor = db.cursor()
-                cursor.execute('select Date, Activity, "Transaction Type", "Other Party", Value from finance order by ID desc limit 5')
+                cursor.execute('select ID, Date, Activity, "Transaction Type", "Other Party", Value from finance order by ID desc limit 5')
                 export = cursor.fetchall()
+                print('exported content')
 
             with open(f'{self.wrkngDrctry}/template.csv', 'w') as template:
-                writer = DictWriter(template, ['Date', 'Activity', 'Transaction Type', 'Other Party', 'Value'])
+                cols = ('ID', 'Date', 'Activity', 'Transaction Type', 'Other Party', 'Value')
+                writer = DictWriter(template, cols)
                 writer.writeheader()
                 for record in export:
                     writer.writerow(record)
             
-            successMsg = btnPrmpt('Success', 'Single', 'Template successfully exported.')
+            successMsg = btnPrmpt('Success', 'Single', 'Template successfully exported.\n\nID field must be empty to insert new records, otherwise the record will be updated if there are any matching; dates must be in ISO format otherwise they will not be accepted.')
             successMsg.exec_()
         except Exception as error:
             errorMsg = btnPrmpt('Error Message', 'Single', error.__str__())
@@ -177,7 +186,7 @@ class MainWindow(QMainWindow):
                         if type(values['ID']) == int:
                             db.execute(f'update finance\
                                 set Date = "{values["Date"]}", Activity = "{values["Activity"]}", `Transaction Type` = "{values["Transaction Type"]}",\
-                                `Other Party` = "{values["Other Party"]}", Value = {values["Value"]};')
+                                `Other Party` = "{values["Other Party"]}", Value = {values["Value"]} where ID = {values["ID"]}')
                             results['Updates'] += 1
                         else:
                             db.execute(f'insert into finance (Date, Activity, "Transaction Type", "Other Party", Value) values(?, ?, ?, ?, ?);', list(values.values())[1:])
@@ -231,18 +240,18 @@ class dataWindow(QWidget):
 
         self.contentTable = QTableWidget()
         self.contentQuery = 'select Date, Activity, "Transaction Type", "Other Party", Value from finance order by ID desc'
-        self.populateTable(self.contentTable, self.contentQuery)
-        numRows = self.contentTable.rowCount()
-        if numRows > 1:
-            self.tabs.addTab(self.contentTable, 'Contents')
-        elif numRows:
-            self.contentTable = QLabel('No results to display')
-            self.contentTable.setAlignment(Qt.AlignCenter)
-            font = self.contentTable.font()
-            font.setPointSize(font.pointSize * 5)
-            self.contentTable.setFont(font)
+        if self.populateTable(self.contentTable, self.contentQuery):
+            numRows = self.contentTable.rowCount()
+            if numRows > 0:
+                self.tabs.addTab(self.contentTable, 'Contents')
+            else:
+                self.contentTable = QLabel('No results to display')
+                self.contentTable.setAlignment(Qt.AlignCenter)
+                font = self.contentTable.font()
+                font.setPointSize(font.pointSize() * 5)
+                self.contentTable.setFont(font)
         else:
-            self.contentTable = QLabel('No results to display')
+            self.contentTable = QLabel('Error occurred when trying to display results.')
             self.contentTable.setAlignment(Qt.AlignCenter)
             font = self.contentTable.font()
             font.setPointSize(font.pointSize() * 5)
@@ -258,6 +267,7 @@ class dataWindow(QWidget):
         "Run given query and return result"
         try:
             with sql.connect(f'{self.wrkngDrctry}/finances.db') as db:
+                db.row_factory = dict_factory
                 cursor = db.cursor()
                 cursor.execute(query)
                 return cursor.fetchall()
@@ -269,24 +279,26 @@ class dataWindow(QWidget):
 
     def populateTable(self, table: QTableWidget, query: str):
         "Populate the given table"
-        export = self.generateContent(query)
-        if export:
-            table.setRowCount(len(export) + 1)
-            table.setColumnCount(5)
+        try:
+            export = self.generateContent(query)
+            if export:
+                table.setRowCount(len(export))
+                table.setColumnCount(5)
 
-            table.horizontalHeader().setStretchLastSection(True) 
-            table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch) 
+                table.horizontalHeader().setStretchLastSection(True) 
+                table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch) 
 
-            columns = ['Date', 'Activity', 'Transaction Type', 'Other Party', 'Value']
+                columns = ['Date', 'Activity', 'Transaction Type', 'Other Party', 'Value']
 
-            for i, title in enumerate(columns):
-                table.setItem(0, i, QTableWidgetItem(title))
-                table.item(0, i).setTextAlignment(Qt.AlignCenter)
-
-            for i in range(len(export)):
-                for j, col in enumerate(columns):
-                    table.setItem(i + 1, j, QTableWidgetItem(export[i][col]))
-
+                for i, title in enumerate(columns):
+                    table.setHorizontalHeaderItem( i, QTableWidgetItem(title))
+                print(export)
+                for row in range(len(export)):
+                    for column, col in enumerate(columns):
+                        table.setItem(row, column, QTableWidgetItem(str(export[row][col])))
+            return True
+        except Exception:
+            return False
 
 class btnPrmpt(QDialog):
 
@@ -301,6 +313,7 @@ class btnPrmpt(QDialog):
         
         self.message = QLabel(msg)
         self.message.setAlignment(Qt.AlignCenter)
+        self.message.setWordWrap(True)
         self.layout.addWidget(self.message)
 
         if dlgType == 'Y / N':
