@@ -77,7 +77,6 @@ class MainWindow(QMainWindow):
                 cursor = db.cursor()
                 cursor.execute('select ID, Date, Activity, "Transaction Type", "Other Party", Value from finance order by ID desc limit 5')
                 export = cursor.fetchall()
-                print('exported content')
 
             with open(f'{self.wrkngDrctry}/template.csv', 'w') as template:
                 cols = ('ID', 'Date', 'Activity', 'Transaction Type', 'Other Party', 'Value')
@@ -156,7 +155,6 @@ class MainWindow(QMainWindow):
                                         raise Exception
                                     dateSep = sep
                             if dateLen > 7 and dateLen < 11 and values['Date'].count(dateSep, 4, 8) == 2:
-                                print(values["Date"])
                                 date = values['Date'].split(dateSep)
                                 if len(date) != 3:
                                     raise Exception
@@ -189,7 +187,8 @@ class MainWindow(QMainWindow):
                         if type(values['ID']) == int:
                             db.execute(f'update finance\
                                 set Date = "{values["Date"]}", Activity = "{values["Activity"]}", `Transaction Type` = "{values["Transaction Type"]}",\
-                                `Other Party` = "{values["Other Party"]}", Value = {values["Value"]} where ID = {values["ID"]}')
+                                `Other Party` = "{values["Other Party"]}", Value = {values["Value"]}\
+                                where ID = {values["ID"]}')
                             results['Updates'] += 1
                         else:
                             db.execute(f'insert into finance (Date, Activity, "Transaction Type", "Other Party", Value) values(?, ?, ?, ?, ?);', list(values.values())[1:])
@@ -239,7 +238,7 @@ class dataWindow(QWidget):
         self.tabs.setTabPosition(QTabWidget.North)
 
         self.contentTable = QTableWidget()
-        self.contentQuery = 'select Date, Activity, "Transaction Type", "Other Party", Value from finance order by ID desc'
+        self.contentQuery = 'select Date, Activity, "Transaction Type", "Other Party", round(Value, 2) Value from finance order by ID desc'
         if self.populateTable(self.contentTable, self.contentQuery):
             numRows = self.contentTable.rowCount()
             if numRows > 0:
@@ -264,7 +263,7 @@ class dataWindow(QWidget):
 
 
     def generateContent(self, query: str):
-        "Run given query and return result"
+        "Run given query and return result."
         try:
             with sql.connect(f'{self.wrkngDrctry}/finances.db') as db:
                 db.row_factory = dict_factory
@@ -292,10 +291,13 @@ class dataWindow(QWidget):
 
                 for i, title in enumerate(columns):
                     table.setHorizontalHeaderItem( i, QTableWidgetItem(title))
-                print(export)
+
                 for row in range(len(export)):
                     for column, col in enumerate(columns):
-                        table.setItem(row, column, QTableWidgetItem(str(export[row][col])))
+                        item = str(export[row][col])
+                        if col == 'Value':
+                            item = '$' + item
+                        table.setItem(row, column, QTableWidgetItem(item))
             return True
         except Exception:
             return False
