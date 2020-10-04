@@ -15,6 +15,7 @@ def dict_factory(cursor, row):
     return d
 
 class MainWindow(QMainWindow):
+    "Program's main window."
     def __init__(self, res, *args, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)
 
@@ -69,6 +70,7 @@ class MainWindow(QMainWindow):
 
 
     def exportTemplate(self):
+        "Exports a template CSV for the user to fill in."
         try:
             with sql.connect(f'{self.wrkngDrctry}/finances.db') as db:
                 db.row_factory = dict_factory
@@ -92,6 +94,7 @@ class MainWindow(QMainWindow):
 
 
     def getCSV(self):
+        "Provides a file dialog to allow the user to choose their CSV file."
         dlg = QFileDialog()
         dlg.setFileMode(QFileDialog.ExistingFile)
         dlg.setNameFilter('Text files (*.csv)')
@@ -101,15 +104,15 @@ class MainWindow(QMainWindow):
             self.csvFile = dlg.selectedFiles()[0]
             if '.csv' in self.csvFile:
                 self.importCSV()
-                break
+                return True
             else:
                 warning = btnPrmpt('Warning', 'Y / N', 'Selected file must be of type CSV.\nDo you wish to continue?')
                 if not warning.exec_():
-                    return
+                    return False
 
 
     def importCSV(self):
-        "Import CSV"
+        "Imports user's chosen CSV"
         with open(self.csvFile) as dataImport:
             reader = DictReader(dataImport)
             with sql.connect(f'{self.wrkngDrctry}/finances.db') as db:
@@ -211,27 +214,24 @@ class MainWindow(QMainWindow):
 
 
     def viewTable(self):
-        self.dataWindow = dataWindow(self.height, self.width)
+        "Initialises the data window."
+        self.dataWindow = dataWindow(self)
         self.dataWindow.show()
 
 
 class dataWindow(QWidget):
-    def __init__(self, height, width, *args, **kwargs):
+    "Displays the contents of the database and other data."
+    def __init__(self, parent: MainWindow, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.setWindowTitle('Data Window')
 
-        self.height = round(height * 0.5)
-        self.width = round(width * 0.5)
-        self.posY = round((height / 2) - (self.geometry().height() / 2))
-        self.posX = round((width / 2) - (self.geometry().width() / 2))
+        self.setMinimumHeight(parent.minimumHeight())
+        self.setMinimumWidth(parent.minimumWidth())
+        self.setMaximumHeight(round(parent.maximumHeight()))
+        self.setMaximumWidth(round(parent.maximumWidth()))
 
-        self.setMinimumHeight(round(self.height / 2))
-        self.setMinimumWidth(round(self.width / 2))
-        self.setMaximumHeight(round(height))
-        self.setMaximumWidth(round(width))
-
-        self.setGeometry(QRect(self.posX, self.posY, self.width, self.height))
+        self.setGeometry(parent.geometry())
 
         self.wrkngDrctry = path[0]
 
@@ -301,7 +301,7 @@ class dataWindow(QWidget):
             return False
 
 class btnPrmpt(QDialog):
-
+    "Creates a prompt that displays a particular message, with buttons to provide a response."
     def __init__(self, title: str, dlgType: str, msg: str, *args, **kwargs):
         super(btnPrmpt, self).__init__(*args, **kwargs)
 
