@@ -1,7 +1,6 @@
 import sqlite3 as sql
-from sys import path
 from os import system
-
+from sys import path
 
 requirements = ['pyqt5']
 

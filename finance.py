@@ -1,11 +1,13 @@
 # pylint:disable=undefined-variable
-from PyQt5.QtWidgets import * 
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
+import datetime as dt
+import sqlite3 as sql
 from csv import DictReader, DictWriter
 from sys import path
 
-import sqlite3 as sql, datetime as dt
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
+
 
 def dict_factory(cursor, row):
     "Causes SQLite3 queries to return as dictionaries"
@@ -36,21 +38,27 @@ class MainWindow(QMainWindow):
 
         
         widgets = []
-        layout = QVBoxLayout()
+        self.mainLayout = QVBoxLayout()
+        self.mainLayout.setAlignment(Qt.AlignVCenter)
 
-        buttonLayout = QHBoxLayout()
+        self.buttonLayout = QHBoxLayout()
 
         self.exportButton = QPushButton('Export CSV Template')
         self.exportButton.setStatusTip('Click to export a template csv that contains the last 5 records.')
         self.exportButton.clicked.connect(self.exportTemplate)
-        buttonLayout.addWidget(self.exportButton)
+        self.buttonLayout.addWidget(self.exportButton)
 
         self.importButton = QPushButton('Import CSV')
         self.importButton.setStatusTip('Click to import data from CSV.')
         self.importButton.clicked.connect(self.getCSV)
-        buttonLayout.addWidget(self.importButton)
+        self.buttonLayout.addWidget(self.importButton)
 
-        layout.addLayout(buttonLayout)
+        self.mainLayout.addLayout(self.buttonLayout)
+
+        self.insertRecord = QPushButton('Insert Record')
+        self.insertRecord.setStatusTip('Click to insert record into the database.')
+        self.insertRecord.clicked.connect(self.insertWindow)
+        widgets.append(self.insertRecord)
 
         self.dtbsContents = QPushButton('Access Data')
         self.dtbsContents.setStatusTip('Click to view financial data.')
@@ -59,14 +67,14 @@ class MainWindow(QMainWindow):
 
         self.statusBar = QStatusBar(self)
         self.statusBar.setToolTip('Status bar')
-        widgets.append(self.statusBar)
+        self.setStatusBar(self.statusBar)
 
         for widge in widgets:
-            layout.addWidget(widge)
+            self.mainLayout.addWidget(widge)
 
-        self.widget = QWidget()
-        self.widget.setLayout(layout)
-        self.setCentralWidget(self.widget)
+        self.mainWidget = QWidget()
+        self.mainWidget.setLayout(self.mainLayout)
+        self.setCentralWidget(self.mainWidget)
 
 
     def exportTemplate(self):
@@ -189,9 +197,11 @@ class MainWindow(QMainWindow):
                                 set Date = "{values["Date"]}", Activity = "{values["Activity"]}", `Transaction Type` = "{values["Transaction Type"]}",\
                                 `Other Party` = "{values["Other Party"]}", Value = {values["Value"]}\
                                 where ID = {values["ID"]}')
+                            db.commit()
                             results['Updates'] += 1
                         else:
                             db.execute(f'insert into finance (Date, Activity, "Transaction Type", "Other Party", Value) values(?, ?, ?, ?, ?);', list(values.values())[1:])
+                            db.commit()
                             results['Inserts'] += 1
 
                     except Exception as error:
@@ -212,10 +222,62 @@ class MainWindow(QMainWindow):
                 successMsg.exec_()
 
 
+    def insertWindow(self):
+        "Create form for inserting a record."
+        self.insert = dataInsertion(self)
+        self.insert.show()
+
+
     def viewTable(self):
         "Initialises the data window."
         self.dataWindow = dataWindow(self)
         self.dataWindow.show()
+
+
+class dataInsertion(QWidget):
+    "Form for the insertion of data into the database."
+    def __init__(self, parent: MainWindow, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.setWindowTitle('Data Insertion')
+
+        self.setMinimumHeight(parent.minimumHeight())
+        self.setMinimumWidth(parent.minimumWidth())
+        self.setMaximumHeight(round(parent.maximumHeight()))
+        self.setMaximumWidth(round(parent.maximumWidth()))
+
+        self.setGeometry(parent.geometry())
+
+        self.wrkngDrctry = parent.wrkngDrctry
+
+        self.layout = QVBoxLayout()
+
+        self.saveLayout = QHBoxLayout()
+        self.saveLayout.setAlignment(Qt.AlignBottom)
+
+        self.saveAndClose = QPushButton('Close')
+        self.saveAndClose.setToolTip('Close the window without saving')
+        self.saveAndClose.clicked.connect(self.windowClose)
+        self.saveLayout.addWidget(self.saveAndClose)
+
+        self.saveAndClose = QPushButton('Save and Close')
+        self.saveAndClose.setToolTip('Save data and close window')
+        self.saveAndClose.clicked.connect(self.windowClose)
+        self.saveLayout.addWidget(self.saveAndClose)
+
+        self.saveAndClose = QPushButton('Save and Continue')
+        self.saveAndClose.setToolTip('Save data and continue')
+        self.saveAndClose.clicked.connect(self.windowClose)
+        self.saveLayout.addWidget(self.saveAndClose)
+
+        self.layout.addLayout(self.saveLayout)
+
+        self.setLayout(self.layout)
+        
+
+    def windowClose(self):
+        "Closes the window."
+        self.close()
 
 
 class dataWindow(QWidget):
@@ -232,7 +294,7 @@ class dataWindow(QWidget):
 
         self.setGeometry(parent.geometry())
 
-        self.wrkngDrctry = path[0]
+        self.wrkngDrctry = parent.wrkngDrctry
 
         self.tabs = QTabWidget()
         self.tabs.setTabPosition(QTabWidget.North)
@@ -262,7 +324,7 @@ class dataWindow(QWidget):
         self.setLayout(self.layout)
 
 
-    def generateContent(self, query: str):
+    def runQuery(self, query: str):
         "Run given query and return result."
         try:
             with sql.connect(f'{self.wrkngDrctry}/finances.db') as db:
@@ -279,7 +341,7 @@ class dataWindow(QWidget):
     def populateTable(self, table: QTableWidget, query: str):
         "Populate the given table"
         try:
-            export = self.generateContent(query)
+            export = self.runQuery(query)
             if export:
                 table.setRowCount(len(export))
                 table.setColumnCount(5)
@@ -301,6 +363,7 @@ class dataWindow(QWidget):
             return True
         except Exception:
             return False
+
 
 class btnPrmpt(QDialog):
     "Creates a prompt that displays a particular message, with buttons to provide a response."
