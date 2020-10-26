@@ -76,6 +76,8 @@ class MainWindow(QMainWindow):
         self.mainWidget.setLayout(self.mainLayout)
         self.setCentralWidget(self.mainWidget)
 
+        self.setMinimumSize(self.mainLayout.sizeHint() * 2)
+
 
     def exportTemplate(self):
         "Exports a template CSV for the user to fill in."
@@ -240,44 +242,123 @@ class dataInsertion(QWidget):
         super().__init__(*args, **kwargs)
 
         self.setWindowTitle('Data Insertion')
+        self.mainWindow = parent
 
-        self.setMinimumHeight(parent.minimumHeight())
-        self.setMinimumWidth(parent.minimumWidth())
-        self.setMaximumHeight(round(parent.maximumHeight()))
-        self.setMaximumWidth(round(parent.maximumWidth()))
+        self.setMinimumHeight(self.mainWindow.minimumHeight())
+        self.setMinimumWidth(self.mainWindow.minimumWidth())
+        self.setMaximumHeight(round(self.mainWindow.maximumHeight()))
+        self.setMaximumWidth(round(self.mainWindow.maximumWidth()))
 
-        self.setGeometry(parent.geometry())
+        self.setGeometry(self.mainWindow.geometry())
 
-        self.wrkngDrctry = parent.wrkngDrctry
+        self.wrkngDrctry = self.mainWindow.wrkngDrctry
 
-        self.layout = QVBoxLayout()
+        self.mainLayout = QVBoxLayout()
+
+        self.dataLayout = QVBoxLayout()
+        self.dataLayout.setAlignment(Qt.AlignCenter)
+
+        self.date = QCalendarWidget()
+        self.date.setToolTip('Select transaction date.')
+        self.date.setWindowTitle('Date')
+        self.date.setFirstDayOfWeek(Qt.DayOfWeek(1))
+        self.date.setMaximumDate(dt.date.today())
+        self.date.setGridVisible(True)
+        self.dataLayout.addWidget(self.date)
+
+        self.details = QTextEdit('Enter transaction description...')
+        self.details.setToolTip('Transaction description')
+        self.dataLayout.addWidget(self.details)
+        
+        self.otherParty = QLineEdit('Enter other party...')
+        self.otherParty.setToolTip('Other party')
+        self.dataLayout.addWidget(self.otherParty)
+
+        self.layout1 = QHBoxLayout()
+
+        self.transactionType = QComboBox()
+        self.transactionType.addItems(("Payment Received", "Loan Return", "Loan", "Paid"))
+        self.transactionType.setToolTip('Transaction type')
+        self.layout1.addWidget(self.transactionType)
+
+        self.currency = QComboBox()
+        self.currency.addItems(("USD", "ZWL"))
+        self.currency.setToolTip('Currency')
+        self.layout1.addWidget(self.currency)
+
+        self.value = QLineEdit()
+        self.value.setValidator(QDoubleValidator())
+        self.value.setToolTip('Value')
+        self.layout1.addWidget(self.value)
+
+        self.dataLayout.addLayout(self.layout1)
+        self.mainLayout.addLayout(self.dataLayout)
+
+        self.mainLayout.addWidget(QLabel())
 
         self.saveLayout = QHBoxLayout()
         self.saveLayout.setAlignment(Qt.AlignBottom)
+        self.saveLayout.setAlignment(Qt.AlignHCenter)
 
-        self.saveAndClose = QPushButton('Close')
-        self.saveAndClose.setToolTip('Close the window without saving')
-        self.saveAndClose.clicked.connect(self.windowClose)
-        self.saveLayout.addWidget(self.saveAndClose)
+        self.closeBtn = QPushButton('Close')
+        self.closeBtn.setToolTip('Close the window without saving')
+        self.closeBtn.clicked.connect(self.close)
+        self.saveLayout.addWidget(self.closeBtn)
 
         self.saveAndClose = QPushButton('Save and Close')
         self.saveAndClose.setToolTip('Save data and close window')
-        self.saveAndClose.clicked.connect(self.windowClose)
+        self.saveAndClose.clicked.connect(self.saveClose)
         self.saveLayout.addWidget(self.saveAndClose)
 
-        self.saveAndClose = QPushButton('Save and Continue')
-        self.saveAndClose.setToolTip('Save data and continue')
-        self.saveAndClose.clicked.connect(self.windowClose)
-        self.saveLayout.addWidget(self.saveAndClose)
+        self.saveAndContinue = QPushButton('Save and Continue')
+        self.saveAndContinue.setToolTip('Save data and continue')
+        self.saveAndContinue.clicked.connect(self.saveContinue)
+        self.saveLayout.addWidget(self.saveAndContinue)
 
-        self.layout.addLayout(self.saveLayout)
+        self.mainLayout.addLayout(self.saveLayout)
 
-        self.setLayout(self.layout)
-        
+        self.setLayout(self.mainLayout)
 
-    def windowClose(self):
-        "Closes the window."
+        self.setMinimumSize(self.mainLayout.sizeHint())
+
+
+    def saveClose(self):
+        "Save user input and close the window."
+        returns = self.collectData()
+        message = btnPrmpt(*returns)
+        message.exec_()
         self.close()
+
+
+    def saveContinue(self):
+        "Save the user input and reset the window."
+        returns = self.collectData()
+        message = btnPrmpt(*returns)
+        message.exec_()
+        self.date.setSelectedDate(dt.date.today())
+        self.details.setText('Enter transaction description...')
+        self.otherParty.setText('Enter other party...')
+        self.value.setText('')
+
+
+    def collectData(self):
+        try:
+            results = []
+            date = self.date.selectedDate()
+            results.append(dt.date(date.year(), date.month(), date.day()))
+            results.append(self.details.toPlainText())
+            results.append(self.otherParty.text())
+            results.append(self.transactionType.currentText())
+            #results.append(self.currency.currentText())
+            results.append(round(float(self.value.text()), 2))
+            
+            with sql.connect('finances.db') as db:
+                db.execute('insert into finance (Date, Activity, "Transaction Type", "Other Party", Value) values(?, ?, ?, ?, ?)', results)
+                db.commit()
+            
+            return ('Success', 'Single', 'Data capture was successful.')
+        except Exception as error:
+            return ('Failure', 'Single', f'Data capture was unsuccessful.\nError message: {error.__str__()}')
 
 
 class dataWindow(QWidget):
@@ -395,6 +476,8 @@ class btnPrmpt(QDialog):
         self.layout.addWidget(self.buttonBox)
 
         self.setLayout(self.layout)
+
+        self.setMinimumSize(self.layout.sizeHint())
 
 
 app = QApplication([])
