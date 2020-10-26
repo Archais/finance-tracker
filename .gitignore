@@ -1,6 +1,4 @@
-failedImports.csv
-finances.db
-template.csv
-Finance Tracker.code-workspace
-test.py
-test.db
+*.csv
+*.db
+*.code-workspace
+test/
