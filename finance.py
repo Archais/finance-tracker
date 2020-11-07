@@ -10,7 +10,7 @@ from PyQt5.QtWidgets import *
 
 
 def dict_factory(cursor, row):
-    "Causes SQLite3 queries to return as dictionaries"
+    "Causes SQLite3 queries to return as dictionaries."
     d = {}
     for idx, col in enumerate(cursor.description):
         d[col[0]] = row[idx]
@@ -18,7 +18,7 @@ def dict_factory(cursor, row):
 
 class MainWindow(QMainWindow):
     "Program's main window."
-    def __init__(self, res, *args, **kwargs):
+    def __init__(self, res: QRect, *args, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)
 
         self.setWindowTitle("Finance Tracker")
@@ -342,6 +342,7 @@ class dataInsertion(QWidget):
 
 
     def collectData(self):
+        "Collects data from window and attempts to insert it."
         try:
             results = []
             date = self.date.selectedDate()
