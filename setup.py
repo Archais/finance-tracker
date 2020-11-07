@@ -1,3 +1,4 @@
+"Installs program requirements and creates database."
 import sqlite3 as sql
 from os import system
 from sys import path
@@ -21,4 +22,4 @@ with sql.connect(f'{path[0]}/finances.db') as db:
         db.commit()
     except Exception as error:
         print(error)
-    
+        input()
