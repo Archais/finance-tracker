@@ -1,13 +1,20 @@
-"Application entry point"
+"Application entry point."
 from PyQt5.QtWidgets import QApplication
 
 from windows.main_window import MainWindow
 
-app = QApplication([])
 
-screenRes = app.desktop().screenGeometry()
+def main():
+    "Creates application instance."
+    app = QApplication([])
 
-window = MainWindow(screenRes)
-window.show()
+    screen_res = app.desktop().screenGeometry()
 
-app.exec_()
+    window = MainWindow(screen_res)
+    window.show()
+
+    app.exec_()
+
+
+if __name__ == "__main__":
+    main()
