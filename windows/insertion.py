@@ -9,13 +9,13 @@ from PyQt5.QtWidgets import (QCalendarWidget, QComboBox, QHBoxLayout, QLabel,
                              QWidget)
 
 from .btn_prompt import BtnPrmpt
-print("Insert")
+
+
 class DataInsertion(QWidget):
     "Form for the insertion of data into the dtbse."
 
     def __init__(self, parent, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        print("Insert too")
 
         self.setWindowTitle('Data Insertion')
         self.main_window = parent
@@ -54,14 +54,9 @@ class DataInsertion(QWidget):
 
         self.transaction_type = QComboBox()
         self.transaction_type.addItems(
-            ("Payment Received", "Loan Return", "Loan", "Paid"))
+            ("Payment Received", "Paid", "Loan Return", "Loan", "Borrow From", "Payback"))
         self.transaction_type.setToolTip('Transaction type')
         self.layout1.addWidget(self.transaction_type)
-
-        self.currency = QComboBox()
-        self.currency.addItems(("USD", "ZWL"))
-        self.currency.setToolTip('Currency')
-        self.layout1.addWidget(self.currency)
 
         self.value = QLineEdit()
         self.value.setValidator(QDoubleValidator())
@@ -122,14 +117,13 @@ class DataInsertion(QWidget):
             date = self.date.selectedDate()
             results.append(dt.date(date.year(), date.month(), date.day()))
             results.append(self.details.toPlainText())
-            results.append(self.other_party.text())
             results.append(self.transaction_type.currentText())
-            # results.append(self.currency.currentText())
+            results.append(self.other_party.text())
             results.append(round(float(self.value.text()), 2))
 
             with sql.connect('finances.db') as dtbse:
                 dtbse.execute(
-                    'insert into finance (Date, Activity, "Transaction Type", "Other Party", '\
+                    'insert into finance (Date, Activity, "Transaction Type", "Other Party", '
                     'Value) values(?, ?, ?, ?, ?)',
                     results
                 )
