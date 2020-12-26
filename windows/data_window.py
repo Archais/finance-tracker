@@ -107,11 +107,12 @@ class DataWindow(QWidget):
         self.layout.addWidget(self.tabs)
         self.setLayout(self.layout)
 
-    def run_query(self, query: str):
+    def run_query(self, query: str, return_dict: bool = True):
         "Run given query and return result."
         try:
             with sql.connect(f'{self.wrkng_drctry}/finances.db') as dtbse:
-                dtbse.row_factory = dict_factory
+                if return_dict:
+                    dtbse.row_factory = dict_factory
                 cursor = dtbse.cursor()
                 cursor.execute(query)
                 return cursor.fetchall()
@@ -121,9 +122,9 @@ class DataWindow(QWidget):
             return None
 
     def populate_table(self, table: QTableWidget, columns: list, query: str):
-        "Populate the given table"
+        "Populate the given table."
         try:
-            export = self.run_query(query)
+            export = self.run_query(query, True)
             if export:
                 table.setRowCount(len(export))
                 table.setColumnCount(len(columns))
