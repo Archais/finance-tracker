@@ -186,6 +186,10 @@ class DataWindow(QWidget):
             self.income_and_expense.setLabel('bottom', "Month")
             self.income_and_expense.setBackground(
                 self.palette().color(QPalette.Window))
+            limits = self.income_and_expense.getViewBox().viewRange()
+            self.income_and_expense.getViewBox().setLimits(
+                xMin=limits[0][0], xMax=limits[0][1], yMin=limits[1][0], yMax=limits[1][1])
+            self.setMinimumSize(self.income_and_expense.sizeHint())
         except Exception:
             self.income_and_expense = QLabel(
                 "Unable to draw Income & Expense graph.")
