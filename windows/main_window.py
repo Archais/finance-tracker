@@ -5,7 +5,6 @@ from csv import DictReader, DictWriter
 from sys import path
 
 from PyQt5.QtCore import QDir, QRect, Qt
-from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtWidgets import (QFileDialog, QHBoxLayout, QMainWindow,
                              QPushButton, QStatusBar, QVBoxLayout, QWidget)
 
@@ -23,8 +22,6 @@ class MainWindow(QMainWindow):
         super(MainWindow, self).__init__(*args, **kwargs)
 
         self.setWindowTitle("Finance Tracker")
-        self.setWindowIcon(
-            QIcon(QPixmap('/home/archais/Python Programs/pyqt/Folder.jpg')))
 
         self.height = res.height()
         self.width = res.width()
