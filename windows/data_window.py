@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import (QHBoxLayout, QHeaderView, QLabel, QTableWidget,
                              QTableWidgetItem, QTabWidget, QVBoxLayout,
                              QWidget)
 
-from helpers import dict_factory
+from helpers import center_window, dict_factory
 
 from .btn_prompt import BtnPrmpt
 
@@ -25,8 +25,6 @@ class DataWindow(QWidget):
         self.setMinimumWidth(parent.minimumWidth())
         self.setMaximumHeight(round(parent.maximumHeight()))
         self.setMaximumWidth(round(parent.maximumWidth()))
-
-        self.setGeometry(parent.geometry())
 
         self.wrkng_drctry = parent.wrkng_drctry
 
@@ -119,6 +117,8 @@ class DataWindow(QWidget):
         self.layout.addWidget(self.tabs)
         self.setLayout(self.layout)
 
+        center_window(self)
+
     def run_query(self, query: str, return_dict: bool = True):
         "Run given query and return result."
         try:
@@ -202,8 +202,8 @@ class DataWindow(QWidget):
         values = [0 for i in range(1, 13)]
         for record in results:
             values[int(record[0])] = float(record[1])
-            #index.append(int(record[0]))
-            #values.append(float(record[1]))
+            # index.append(int(record[0]))
+            # values.append(float(record[1]))
 
         for i in range(1, 13):
             if i not in index:

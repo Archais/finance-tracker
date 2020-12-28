@@ -8,6 +8,7 @@ from PyQt5.QtWidgets import (QCalendarWidget, QComboBox, QHBoxLayout, QLabel,
                              QLineEdit, QPushButton, QTextEdit, QVBoxLayout,
                              QWidget)
 
+from helpers import center_window
 from .btn_prompt import BtnPrmpt
 
 
@@ -24,8 +25,6 @@ class DataInsertion(QWidget):
         self.setMinimumWidth(self.main_window.minimumWidth())
         self.setMaximumHeight(round(self.main_window.maximumHeight()))
         self.setMaximumWidth(round(self.main_window.maximumWidth()))
-
-        self.setGeometry(self.main_window.geometry())
 
         self.wrkng_drctry = self.main_window.wrkng_drctry
 
@@ -92,6 +91,7 @@ class DataInsertion(QWidget):
         self.setLayout(self.main_layout)
 
         self.setMinimumSize(self.main_layout.sizeHint())
+        center_window(self)
 
     def save_close(self):
         "Save user input and close the window."

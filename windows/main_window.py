@@ -8,7 +8,7 @@ from PyQt5.QtCore import QDir, QRect, Qt
 from PyQt5.QtWidgets import (QFileDialog, QHBoxLayout, QMainWindow,
                              QPushButton, QStatusBar, QVBoxLayout, QWidget)
 
-from helpers import dict_factory
+from helpers import center_window, dict_factory
 
 from .btn_prompt import BtnPrmpt
 from .data_window import DataWindow
@@ -81,6 +81,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.main_widget)
 
         self.setMinimumSize(self.main_layout.sizeHint() * 2)
+        center_window(self)
 
     def export_template(self):
         "Exports a template CSV for the user to fill in."

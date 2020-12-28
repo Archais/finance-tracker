@@ -2,6 +2,8 @@
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QDialog, QDialogButtonBox, QLabel, QVBoxLayout
 
+from helpers import center_window
+
 
 class BtnPrmpt(QDialog):
     "Creates a prompt that displays a particular message, with buttons to provide a response."
@@ -36,3 +38,4 @@ class BtnPrmpt(QDialog):
         self.setLayout(self.layout)
 
         self.setMinimumSize(self.layout.sizeHint())
+        center_window(self)
