@@ -201,7 +201,7 @@ class DataWindow(QWidget):
         index = list(range(1, 13))
         values = [0 for i in range(1, 13)]
         for record in results:
-            values[int(record[0])] = float(record[1])
+            values[int(record[0]) - 1] = float(record[1])
             # index.append(int(record[0]))
             # values.append(float(record[1]))
 
