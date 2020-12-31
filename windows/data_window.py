@@ -4,8 +4,8 @@ import pyqtgraph as pg
 
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPalette
-from PyQt5.QtWidgets import (QHBoxLayout, QHeaderView, QLabel, QTableWidget,
-                             QTableWidgetItem, QTabWidget, QVBoxLayout,
+from PyQt5.QtWidgets import (QAction, QHBoxLayout, QHeaderView, QLabel, QTableWidget,
+                             QTableWidgetItem, QTabWidget, QToolBar, QVBoxLayout,
                              QWidget)
 
 from helpers import center_window, dict_factory
@@ -21,73 +21,120 @@ class DataWindow(QWidget):
 
         self.setWindowTitle('Data Window')
 
-        self.setMinimumHeight(parent.minimumHeight())
-        self.setMinimumWidth(parent.minimumWidth())
+        self.setMinimumHeight(parent.minimumHeight() * 2)
+        self.setMinimumWidth(parent.minimumWidth() * 2)
         self.setMaximumHeight(round(parent.maximumHeight()))
         self.setMaximumWidth(round(parent.maximumWidth()))
 
         self.wrkng_drctry = parent.wrkng_drctry
 
+        self.layout = QVBoxLayout()
+
+        self.toolbar = QToolBar('Toolbar')
+        refresh = QAction('Refresh', self)
+        refresh.setToolTip("Refresh Window")
+        refresh.triggered.connect(self.refresh)
+        self.toolbar.addAction(refresh)
+        self.layout.addWidget(self.toolbar)
+
         self.tabs = QTabWidget()
         self.tabs.setTabPosition(QTabWidget.North)
 
         # Money totals tab
+        self.set_tabs()
+        self.tabs.addTab(self.money_totals, 'Balance Sheet')
+        self.tabs.addTab(self.content_table, 'Transaction History')
+        self.tabs.addTab(self.metrics, "Graphs")
+
+        self.layout.addWidget(self.tabs)
+        self.setLayout(self.layout)
+
+        center_window(self)
+
+    def set_tabs(self):
+        "Set tabs."
+        print("tabs")
+        # Money totals tab
         self.money_totals = QWidget()
-        self.totals_layout = QVBoxLayout()
-        self.totals_layout.setAlignment(Qt.AlignCenter)
+        self.balance_amnt = QLabel()
+        self.debtors = QTableWidget()
+        self.creditors = QTableWidget()
+        self.balance_sheet()
+
+        # Table for transaction history
+        self.content_table = QTableWidget()
+        self.create_transaction_history()
+
+        # Balance graphs across the year
+        self.metrics = QWidget()
+        self.metrics_layout = QVBoxLayout(self.metrics)
+
+        self.income_and_expense = pg.PlotWidget()
+        self.draw_ie_chart()
+        self.metrics_layout.addWidget(self.income_and_expense)
+
+    def balance_sheet(self, refresh: bool = False):
+        "Generate balance sheet."
+        # SQL queries for displayed data
+        queries = {
+            'balance': r"select round(sum(case when `Transaction Type` like '%received%' or "\
+                r"`Transaction Type` like '%return%' or `Transaction Type` like '%borrow from%' "\
+                r"then Value else Value * -1 end), 2) balance from finance",
+            'debtors': "select `Other Party` Debtor, sum(case when `Transaction Type` == "\
+                "'Loan' then Value else (case when `Transaction Type` == 'Loan Return' then Value "\
+                "* -1 else 0 end) end) 'Amount Owed' from finance group by Debtor having `Amount "\
+                "Owed` != 0 order by `Amount Owed` desc",
+            'creditors': "select `Other Party` Creditor, sum(case when `Transaction Type` =="\
+                " 'Borrow From' then Value else (case when `Transaction Type` == 'Payback' then "\
+                "Value * -1 else 0 end) end) 'Amount Owed' from finance group by Creditor having "\
+                "`Amount Owed` != 0 order by `Amount Owed` desc"
+        }
 
         # User balance
-        self.balance_row = QHBoxLayout()
-        self.balance_lbl = QLabel("Balance: ")
-        self.balance_row.addWidget(self.balance_lbl)
-        self.balance_query = r"select round(sum(case when `Transaction Type` like '%received%' or "\
-            r"`Transaction Type` like '%return%' or `Transaction Type` like '%borrow from%' then "\
-            r"Value else Value * -1 end), 2) balance from finance"
-        self.balance = self.run_query(self.balance_query)[0]['balance']
-        self.balance_amnt = QLabel(
-            '$' + str(self.balance if self.balance else 0))
-        self.balance_row.addWidget(self.balance_amnt)
-        self.balance_row.setAlignment(Qt.AlignLeft)
-        self.totals_layout.addLayout(self.balance_row)
+        balance = self.run_query(queries['balance'])[0]['balance']
+        self.balance_amnt.setText('$' + str(balance if balance else 0))
 
         # Debtors table
-        self.debtors = QTableWidget()
-        self.debtors_columns = ["Debtor", "Amount Owed"]
-        self.debtors_query = "select `Other Party` Debtor, sum(case when `Transaction Type` == "\
-            "'Loan' then Value else (case when `Transaction Type` == 'Loan Return' then Value * -1"\
-            " else 0 end) end) 'Amount Owed' from finance group by Debtor having `Amount Owed` != "\
-            "0 order by `Amount Owed` desc"
-        if self.populate_table(self.debtors, self.debtors_columns, self.debtors_query):
+        debtors_columns = ["Debtor", "Amount Owed"]
+        if self.populate_table(self.debtors, debtors_columns, queries['debtors']):
             if self.debtors.rowCount() < 1:
                 self.debtors = QLabel("There are currently no debtors.")
         else:
             self.debtors = QLabel("Error displaying debtors.")
-        self.totals_layout.addWidget(self.debtors)
 
         # Creditors table
-        self.creditors = QTableWidget()
-        self.creditors_columns = ["Creditor", "Amount Owed"]
-        self.creditors_query = "select `Other Party` Creditor, sum(case when `Transaction Type` =="\
-            " 'Borrow From' then Value else (case when `Transaction Type` == 'Payback' then Value"\
-            " * -1 else 0 end) end) 'Amount Owed' from finance group by Creditor having `Amount "\
-            "Owed` != 0 order by `Amount Owed` desc"
-        if self.populate_table(self.creditors, self.creditors_columns, self.creditors_query):
+        creditors_columns = ["Creditor", "Amount Owed"]
+        if self.populate_table(self.creditors, creditors_columns, queries['creditors']):
             if self.creditors.rowCount() < 1:
                 self.creditors = QLabel("There are currently no creditors.")
         else:
             self.creditors = QLabel("Error displaying creditors.")
-        self.totals_layout.addWidget(self.creditors)
 
-        self.money_totals.setLayout(self.totals_layout)
-        self.tabs.addTab(self.money_totals, 'Totals')
+        if not refresh:
+            totals_layout = QVBoxLayout()
+            totals_layout.setAlignment(Qt.AlignCenter)
 
-        # Table for transaction history
-        self.content_table = QTableWidget()
-        self.content_query = 'select Date, Activity, "Transaction Type", "Other Party", '\
-            'round(Value, 2) Value from finance order by ID desc'
-        self.content_table_columns = [
+            # User balance
+            balance_row = QHBoxLayout()
+            balance_lbl = QLabel("Balance: ")
+            balance_row.addWidget(balance_lbl)
+            balance_row.addWidget(self.balance_amnt)
+            balance_row.setAlignment(Qt.AlignLeft)
+            totals_layout.addLayout(balance_row)
+
+            totals_layout.addWidget(self.debtors)
+
+            totals_layout.addWidget(self.creditors)
+
+            self.money_totals.setLayout(totals_layout)
+
+    def create_transaction_history(self):
+        "Generates transaction history table."
+        content_query = 'select Date, Activity, "Transaction Type", "Other Party", '\
+            'round(Value, 2) Value from finance order by Date desc'
+        content_table_columns = [
             'Date', 'Activity', 'Transaction Type', 'Other Party', 'Value']
-        if self.populate_table(self.content_table, self.content_table_columns, self.content_query):
+        if self.populate_table(self.content_table, content_table_columns, content_query):
             if self.content_table.rowCount() < 1:
                 self.content_table = QLabel('No results to display')
                 self.content_table.setAlignment(Qt.AlignCenter)
@@ -101,23 +148,6 @@ class DataWindow(QWidget):
             font = self.content_table.font()
             font.setPointSize(font.pointSize() * 5)
             self.content_table.setFont(font)
-        self.tabs.addTab(self.content_table, 'Transaction History')
-
-        # Balance graphs across the year
-        self.metrics = QWidget()
-        self.metrics_layout = QVBoxLayout(self.metrics)
-
-        self.income_and_expense = pg.PlotWidget()
-        self.draw_ie_chart()
-        self.metrics_layout.addWidget(self.income_and_expense)
-
-        self.tabs.addTab(self.metrics, "Graphs")
-
-        self.layout = QVBoxLayout()
-        self.layout.addWidget(self.tabs)
-        self.setLayout(self.layout)
-
-        center_window(self)
 
     def run_query(self, query: str, return_dict: bool = True):
         "Run given query and return result."
@@ -136,6 +166,7 @@ class DataWindow(QWidget):
     def populate_table(self, table: QTableWidget, columns: list, query: str):
         "Populate the given table."
         try:
+            table.clearContents()
             export = self.run_query(query, True)
             if export:
                 table.setRowCount(len(export))
@@ -152,7 +183,7 @@ class DataWindow(QWidget):
                 for row in enumerate(export):
                     for column, col in enumerate(columns):
                         item = str(export[row[0]][col])
-                        if col == 'Value':
+                        if col in ('Value', 'Amount Owed'):
                             item = '$' + item
                         item = QTableWidgetItem(item)
                         item.setFlags(Qt.ItemIsEnabled)
@@ -163,6 +194,7 @@ class DataWindow(QWidget):
 
     def draw_ie_chart(self):
         "Draw chart for monthly income & expense."
+        self.income_and_expense.clear()
         income_query = r"select strftime('%m', Date) Month, sum(case when `Transaction "\
             r"Type` in ('Payment Received', 'Loan Return', 'Borrow From') then Value else 0 end) "\
             r"Income from finance where strftime('%Y', Date) = "\
@@ -214,3 +246,9 @@ class DataWindow(QWidget):
             graph.plot(index, values, pen=pen, name=name)
         else:
             graph.plot(index, values, name=name)
+
+    def refresh(self):
+        "Refresh displayed data."
+        self.balance_sheet(refresh=True)
+        self.create_transaction_history()
+        self.draw_ie_chart()
