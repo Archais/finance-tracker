@@ -53,7 +53,6 @@ class DataWindow(QWidget):
 
     def set_tabs(self):
         "Set tabs."
-        print("tabs")
         # Money totals tab
         self.money_totals = QWidget()
         self.balance_amnt = QLabel()
