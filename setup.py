@@ -3,10 +3,9 @@ import sqlite3 as sql
 from os import system
 from sys import path
 
-requirements = ['pyqt5']
-
-for item in requirements:
-    system(f'pip3 install {item}')
+with open('requirements.txt') as requirements:
+    for line in requirements:
+        system(f'pip3 install {line}')
 
 
 with sql.connect(f'{path[0]}/finances.db') as db:
